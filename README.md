@@ -9,6 +9,7 @@ This repo contains two solvers for solving the sublevel set SDP problem (Marina 
 ```matlab
 load X0_200
 [S, X, p_value, time, v] = dual_admm3c_test(X0, G, 4, 1e-4, 100);
+[P, epsilon, obj_value, time] = cg_ss_test(X0, G, 4, 5000, 50);
 ```
 
 # References
