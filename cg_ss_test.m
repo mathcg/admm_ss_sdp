@@ -1,4 +1,4 @@
-function [P, epsilon, time] = cg_ss_test(X0, G, K, max_iter, p_iter)
+function [P, epsilon, obj_value, time] = cg_ss_test(X0, G, K, max_iter, p_iter)
 % Helper function to run conditional gradient for sublevel set SDP
 % problem.
 % Args:
@@ -31,6 +31,6 @@ X0_u_temp = u(:, eig_loc) * sqrt(v(eig_loc, eig_loc));
 temp = G_u_temp' * X0_u_temp;
 costmax = norm(temp, 'fro')^2;
 
-[P, epsilon, time] = cg_ss(X0, G_u_temp, X0_u_temp, K, costmax,... 
-                           x2,max_iter, N_inner, p_iter);
+[P, epsilon, obj_value, time] = cg_ss(X0, G_u_temp, X0_u_temp, K, costmax,... 
+                           x2, max_iter, N_inner, p_iter);
 end

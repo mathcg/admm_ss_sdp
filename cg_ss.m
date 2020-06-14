@@ -1,4 +1,4 @@
-function [P, epsilon, time] = cg_ss(X0, G_half, X0_half, K, costmax, x2, max_iter, N_inner, p_iter)
+function [P, epsilon, obj_value, time] = cg_ss(X0, G_half, X0_half, K, costmax, x2, max_iter, N_inner, p_iter)
 % use conditional gradient method to solve the sublevel set problem
 % The algorithm following as first rewriting the problem as 
 % min <X0, P> s.t.  P1 = 0, tr(P) = K - 1;  P psd;  P + E_n >= 0;  <G, P>
@@ -34,7 +34,7 @@ P = zeros(n);
 trace_G_P = 0;
 trace_X0_P = 0;
 Gamma = zeros(n);
-gamma = 1;
+% gamma = 1;
 tau = 1.618;
 
 one_v = ones(n, 1);
@@ -43,30 +43,41 @@ one_over_n = 1./n;
 opts.isreal = 1;
 opts.issym = 1;
 
+obj_value = zeros(max_iter, 1);
+
 tic
 for i = 1:max_iter
+    gamma = sqrt(i);
     for j = 1: N_inner
         P_plus_En = P + one_over_n;
         G_P_minus = trace_G_P - costmax;
         
-        x2_temp = x2 + gamma * min(G_P_minus, 0);
-        g_grad = Gamma + gamma * min(P_plus_En, 0);
+% old code, not quite right.        
+%         x2_temp = x2 + gamma * min(G_P_minus, 0);
+%         g_grad = Gamma + gamma * min(P_plus_En, 0);
+%         temp = 1/n * (g_grad * one_v);
+%         g_grad_mean = mean(g_grad(:)) + 1/n;  % 1/n since the mean of X0 is 1/n;
+%         B1fun = @(x) sum(x) * (temp - g_grad_mean + 2/n) + temp' * x;
+%         C1fun = @(x) X0_half * (X0_half' * x) + x2_temp * (G_half * (G_half' * x));
+%         A1fun = @(x) g_grad * x + C1fun(x) - B1fun(x);
+
+        x2_temp = min(x2 + gamma * G_P_minus, 0);
+        g_grad = min(Gamma + gamma * P_plus_En, 0);
         temp = 1/n * (g_grad * one_v);
-        g_grad_mean = mean(g_grad(:)) + 1/n;  % 1/n since the mean of X0 is 1/n;
-        
-        B1fun = @(x) sum(x) * (temp - g_grad_mean + 2/n) + temp' * x;
+        g_grad_mean = mean(g_grad(:));
+        B1fun = @(x) sum(x) * (g_grad_mean - 1/n - temp) - temp' * x;
         C1fun = @(x) X0_half * (X0_half' * x) + x2_temp * (G_half * (G_half' * x));
-        A1fun = @(x) g_grad * x + C1fun(x) - B1fun(x);
+        A1fun = @(x) g_grad * x + C1fun(x) + B1fun(x);
 
         opts.tol = 1/j;
         [u, v_ignore] = eigs(A1fun, n, 1, 'sa', opts);
         if v_ignore > 0
-%             fprintf('positive eigenvalue for A\n');
+            fprintf('positive eigenvalue for A\n');
             continue
         end
         H = (K - 1) *  (u * u');
-%         alpha = 2/((i-1)*N_inner + j - 1 + 2);
-        alpha = 2/(i + j + 2);
+        alpha = 2/((i-1)*N_inner + j - 1 + 2);
+%         alpha = 2/(i + j + 2);
         P = (1 - alpha) * P + alpha * H;
         trace_G_P = (1 - alpha) * trace_G_P + (K - 1) * alpha * norm(G_half' * u)^2;
         trace_X0_P = (1 - alpha) * trace_X0_P + (K - 1) * alpha * norm(X0_half' * u)^2;
@@ -74,17 +85,22 @@ for i = 1:max_iter
 
     P_nneg = P + one_over_n;
     Gamma = min(Gamma + tau * gamma * P_nneg, 0);
-    x2 = min(x2 + gamma * (trace_G_P - costmax), 0);
-    max_error = abs(min(P_nneg(:)));
-    
+    x2 = min(x2 + tau * gamma * (trace_G_P - costmax), 0);
+    max_error = max(abs(min(P_nneg(:))), abs(trace_G_P - costmax));
+    obj_value(i) = trace_X0_P + 1;
     if mod(i, p_iter) == 0 || max_error <= 1e-5
-        obj_value = trace_X0_P + 1;
         fprintf('after %d iteration, cost difference is %f\n', i, trace_G_P - costmax);
         fprintf('after %d iteration, max_error is %f\n', i, max_error)
-        fprintf('after %d iteration, obj value is %f\n', i, obj_value)
+        fprintf('after %d iteration, obj value is %f\n', i, obj_value(i))
+        if i > 1
+            fprintf('after %d iteration, difference in obj_value is %f\n',...
+                i, obj_value(i) - obj_value(i - 1))
+        end
         fprintf('\n');
     end
-    if max_error <= 1e-5
+    if max_error <= 1e-5 || i > 1 && abs(obj_value(i) - obj_value(i - 1)) <= 1e-6 
+        fprintf('after %d iteration, difference in obj_value is %f\n', i,...
+            obj_value(i) - obj_value(i - 1))
         break
     end
 end
