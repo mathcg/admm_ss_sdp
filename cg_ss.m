@@ -98,7 +98,7 @@ for i = 1:max_iter
         end
         fprintf('\n');
     end
-    if max_error <= 1e-5 || i > 1 && abs(obj_value(i) - obj_value(i - 1)) <= 1e-6 
+    if max_error <= 1e-5 || i > 1 && abs(obj_value(i) - obj_value(i - 1)) <= 1e-5 && max_error <= 1e-4
         fprintf('after %d iteration, difference in obj_value is %f\n', i,...
             obj_value(i) - obj_value(i - 1))
         break
